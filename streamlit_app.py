@@ -145,29 +145,54 @@ with tab2:
         
         st.video(tfile.name)
         
-        if st.button("Analyze Video"):
-            st.warning("Video processing can be slow on CPU. Please check console for progress.")
+        if st.button("Generate Analyzed Video"):
+            status_text = st.empty()
+            progress_bar = st.progress(0)
+            status_text.text("Initializing video processing...")
             
-            # Simple Frame Processing Loop for Demo
             cap = cv2.VideoCapture(tfile.name)
-            stframe = st.empty()
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
+            # Output setup
+            output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            # Try 'avc1' (H.264) for browser compatibility, fallback to 'mp4v'
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            except:
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                
+            out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
+            
+            frame_count = 0
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
                 
-                # Resize for performance if needed
-                # frame = cv2.resize(frame, (640, 640))
-                
                 # Inference
                 results = model.predict(frame, conf=confidence_threshold, verbose=False)
                 res_plotted = results[0].plot()
                 
-                # Display
-                stframe.image(res_plotted, channels="BGR", use_column_width=True)
-            
+                # Write frame
+                out.write(res_plotted)
+                
+                # Progress
+                frame_count += 1
+                if total_frames > 0:
+                    progress_bar.progress(frame_count / total_frames)
+                    
             cap.release()
+            out.release()
+            
+            status_text.success("Processing Complete! 🎉")
+            progress_bar.empty()
+            
+            # Display Result
+            st.markdown("### 🎬 Analyzed Video")
+            st.video(output_file.name)
 
 with tab3:
     st.markdown("#### 📸 Real-time Webcam Stream")
