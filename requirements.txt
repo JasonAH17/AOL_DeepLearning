@@ -1,1 +1,5 @@
-streamlit>=1.26.0
+ultralytics
+streamlit
+opencv-python-headless
+pillow
+numpy
