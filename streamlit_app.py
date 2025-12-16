@@ -4,6 +4,8 @@ import tempfile
 import time
 from ultralytics import YOLO
 import PIL.Image
+from streamlit_webrtc import webrtc_streamer
+import av
 
 # -------------------------
 # Page Configuration
@@ -168,36 +170,25 @@ with tab2:
             cap.release()
 
 with tab3:
-    st.markdown("#### 📸 Real-time Webcam Capture")
-    st.info("Ensure your browser allows camera access.")
-    cam_image = st.camera_input("Take a snapshot")
+    st.markdown("#### 📸 Real-time Webcam Stream")
     
-    if cam_image is not None:
-        col1, col2 = st.columns(2)
+    # Callback for video processing
+    def video_frame_callback(frame):
+        img = frame.to_ndarray(format="bgr24")
         
-        with col1:
-            st.markdown("#### Captured Frame")
-            img = PIL.Image.open(cam_image)
-            st.image(img, use_column_width=True)
-            
-        with col2:
-            st.markdown("#### Detection Result")
-            if st.button("Run Detection", key="cam_btn"):
-                with st.spinner('Analyzing...'):
-                    # Inference
-                    results = model.predict(img, conf=confidence_threshold, iou=iou_threshold)
-                    
-                    # Plot
-                    res_plotted = results[0].plot()
-                    st.image(res_plotted, use_column_width=True)
-                    
-                    # Statistics
-                    boxes = results[0].boxes
-                    num_helmets = sum(1 for box in boxes if int(box.cls[0]) == 0)
-                    num_no_helmets = sum(1 for box in boxes if int(box.cls[0]) != 0)
-                    
-                    st.success(f"✅ With Helmet: {num_helmets}")
-                    if num_no_helmets > 0:
-                        st.error(f"⚠️ Without Helmet: {num_no_helmets}")
-                    else:
-                        st.info("No violations detected.")
+        # Inference
+        # Note: 'model' is loaded from cache_resource scope. 
+        # Inside threads, we might need to be careful, but YOLO is usually valid.
+        results = model.predict(img, conf=confidence_threshold, verbose=False)
+        res_plotted = results[0].plot()
+        
+        return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
+
+    webrtc_streamer(
+        key="realtime-detection",
+        video_frame_callback=video_frame_callback,
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True
+    )
+    
+    st.info("Note: Real-time performance depends on your device CPU/GPU capabilities.")
