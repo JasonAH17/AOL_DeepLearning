@@ -156,15 +156,27 @@ with tab2:
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Output setup
+            # Output setup - Try multiple codecs
             output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-            # Try 'avc1' (H.264) for browser compatibility, fallback to 'mp4v'
-            try:
-                fourcc = cv2.VideoWriter_fourcc(*'avc1')
-            except:
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                
-            out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
+            
+            # Codecs to try in order of preference for browser compatibility
+            # 'avc1' (H.264) -> Best for HTML5
+            # 'mp4v' -> Standard MP4 (might not play in all browsers)
+            # 'vp09'/'vp80' -> WebM (good backup)
+            codecs = ['avc1', 'mp4v', 'vp80', 'DIVX']
+            out = None
+            used_codec = None
+            
+            for c in codecs:
+                fourcc = cv2.VideoWriter_fourcc(*c)
+                out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
+                if out.isOpened():
+                    used_codec = c
+                    break
+            
+            if not out or not out.isOpened():
+                st.error("Could not initialize video writer. Install 'ffmpeg' on the server.")
+                st.stop()
             
             frame_count = 0
             while cap.isOpened():
@@ -182,12 +194,12 @@ with tab2:
                 # Progress
                 frame_count += 1
                 if total_frames > 0:
-                    progress_bar.progress(frame_count / total_frames)
+                    progress_bar.progress(min(frame_count / total_frames, 1.0))
                     
             cap.release()
             out.release()
             
-            status_text.success("Processing Complete! 🎉")
+            status_text.success(f"Processing Complete using codec: {used_codec}! 🎉")
             progress_bar.empty()
             
             # Display Result
