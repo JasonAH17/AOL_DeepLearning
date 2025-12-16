@@ -88,7 +88,7 @@ except Exception as e:
     model = load_model("yolov8n.pt")
 
 # Tabs for different modes
-tab1, tab2 = st.tabs(["🖼️ Image Analysis", "📹 Video Analysis"])
+tab1, tab2, tab3 = st.tabs(["🖼️ Image Analysis", "📹 Video Analysis", "📸 Live Camera"])
 
 with tab1:
     uploaded_file = st.file_uploader("Choose an image...", type=['jpg', 'png', 'jpeg'])
@@ -166,3 +166,38 @@ with tab2:
                 stframe.image(res_plotted, channels="BGR", use_column_width=True)
             
             cap.release()
+
+with tab3:
+    st.markdown("#### 📸 Real-time Webcam Capture")
+    st.info("Ensure your browser allows camera access.")
+    cam_image = st.camera_input("Take a snapshot")
+    
+    if cam_image is not None:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Captured Frame")
+            img = PIL.Image.open(cam_image)
+            st.image(img, use_column_width=True)
+            
+        with col2:
+            st.markdown("#### Detection Result")
+            if st.button("Run Detection", key="cam_btn"):
+                with st.spinner('Analyzing...'):
+                    # Inference
+                    results = model.predict(img, conf=confidence_threshold, iou=iou_threshold)
+                    
+                    # Plot
+                    res_plotted = results[0].plot()
+                    st.image(res_plotted, use_column_width=True)
+                    
+                    # Statistics
+                    boxes = results[0].boxes
+                    num_helmets = sum(1 for box in boxes if int(box.cls[0]) == 0)
+                    num_no_helmets = sum(1 for box in boxes if int(box.cls[0]) != 0)
+                    
+                    st.success(f"✅ With Helmet: {num_helmets}")
+                    if num_no_helmets > 0:
+                        st.error(f"⚠️ Without Helmet: {num_no_helmets}")
+                    else:
+                        st.info("No violations detected.")
