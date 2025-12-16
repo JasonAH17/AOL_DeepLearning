@@ -221,21 +221,35 @@ with tab2:
 with tab3:
     st.markdown("#### 📸 Real-time Webcam Stream")
     
-    # Callback for video processing
-    def video_frame_callback(frame):
-        img = frame.to_ndarray(format="bgr24")
-        
-        # Inference
-        # Note: 'model' is loaded from cache_resource scope. 
-        # Inside threads, we might need to be careful, but YOLO is usually valid.
-        results = model.predict(img, conf=confidence_threshold, verbose=False)
-        res_plotted = results[0].plot()
-        
-        return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
+    # helper class to persist callback identity
+    class YOLOVideoProcessor:
+        def __init__(self):
+            # These will be updated by the main script
+            self.model = None
+            self.conf = 0.4
+            
+        def recv(self, frame):
+            img = frame.to_ndarray(format="bgr24")
+            
+            # Use the injected model and settings
+            if self.model is not None:
+                results = self.model.predict(img, conf=self.conf, verbose=False)
+                res_plotted = results[0].plot()
+                return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
+            
+            return frame
+
+    # Initialize processor in session state if not present
+    if "video_processor" not in st.session_state:
+        st.session_state.video_processor = YOLOVideoProcessor()
+
+    # Update processor with current controls
+    st.session_state.video_processor.model = model
+    st.session_state.video_processor.conf = confidence_threshold
 
     webrtc_streamer(
         key="realtime-detection",
-        video_frame_callback=video_frame_callback,
+        video_frame_callback=st.session_state.video_processor.recv,
         media_stream_constraints={"video": True, "audio": False},
         async_processing=True
     )
