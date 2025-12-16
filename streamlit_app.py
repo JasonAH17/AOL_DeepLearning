@@ -156,26 +156,38 @@ with tab2:
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Output setup - Try multiple codecs
-            output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-            
             # Codecs to try in order of preference for browser compatibility
-            # 'avc1' (H.264) -> Best for HTML5
-            # 'mp4v' -> Standard MP4 (might not play in all browsers)
-            # 'vp09'/'vp80' -> WebM (good backup)
-            codecs = ['avc1', 'mp4v', 'vp80', 'DIVX']
+            # 1. h264 (avc1) -> Standard .mp4
+            # 2. VP80 (vp80) -> WebM (Very reliable on Linux/Web)
+            # 3. mp4v -> Legacy .mp4
+            codecs = [
+                ('avc1', '.mp4'),
+                ('vp80', '.webm'),
+                ('mp4v', '.mp4')
+            ]
+            
+            output_file_name = ""
             out = None
             used_codec = None
             
-            for c in codecs:
-                fourcc = cv2.VideoWriter_fourcc(*c)
-                out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
-                if out.isOpened():
-                    used_codec = c
-                    break
+            for c, ext in codecs:
+                try:
+                    tfile_out = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                    output_file_name = tfile_out.name
+                    tfile_out.close()
+                    
+                    fourcc = cv2.VideoWriter_fourcc(*c)
+                    out_temp = cv2.VideoWriter(output_file_name, fourcc, fps, (width, height))
+                    
+                    if out_temp.isOpened():
+                        out = out_temp
+                        used_codec = c
+                        break
+                except Exception as e:
+                    continue
             
             if not out or not out.isOpened():
-                st.error("Could not initialize video writer. Install 'ffmpeg' on the server.")
+                st.error("Could not initialize video writer with any supported codec (H.264/VP8).")
                 st.stop()
             
             frame_count = 0
@@ -203,8 +215,8 @@ with tab2:
             progress_bar.empty()
             
             # Display Result
-            st.markdown("### 🎬 Analyzed Video")
-            st.video(output_file.name)
+            st.markdown(f"### 🎬 Analyzed Video ({used_codec})")
+            st.video(output_file_name)
 
 with tab3:
     st.markdown("#### 📸 Real-time Webcam Stream")
