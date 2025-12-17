@@ -11,7 +11,7 @@ import av
 # Page Configuration
 # -------------------------
 st.set_page_config(
-    page_title="Helix Detect Pro",
+    page_title="HelmGuard Vision",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
