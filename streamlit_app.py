@@ -70,7 +70,7 @@ st.sidebar.info("Using 'Nano' for maximum speed.")
 # -------------------------
 # Main Content
 # -------------------------
-st.title("🛡️ Helix Detect Pro")
+st.title("🛡️ HelmGuard Vision")
 st.markdown("### Advanced Real-time Helmet Detection System")
 st.markdown("Upload an image or video to detect safety helmet compliance with high precision.")
 
@@ -156,10 +156,6 @@ with tab2:
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Codecs to try in order of preference for browser compatibility
-            # 1. h264 (avc1) -> Standard .mp4
-            # 2. VP80 (vp80) -> WebM (Very reliable on Linux/Web)
-            # 3. mp4v -> Legacy .mp4
             codecs = [
                 ('avc1', '.mp4'),
                 ('vp80', '.webm'),
@@ -220,18 +216,15 @@ with tab2:
 
 with tab3:
     st.markdown("#### 📸 Real-time Webcam Stream")
-    
-    # helper class to persist callback identity
+
     class YOLOVideoProcessor:
         def __init__(self):
-            # These will be updated by the main script
             self.model = None
             self.conf = 0.4
             
         def recv(self, frame):
             img = frame.to_ndarray(format="bgr24")
             
-            # Use the injected model and settings
             if self.model is not None:
                 results = self.model.predict(img, conf=self.conf, verbose=False)
                 res_plotted = results[0].plot()
@@ -239,11 +232,9 @@ with tab3:
             
             return frame
 
-    # Initialize processor in session state if not present
     if "video_processor" not in st.session_state:
         st.session_state.video_processor = YOLOVideoProcessor()
 
-    # Update processor with current controls
     st.session_state.video_processor.model = model
     st.session_state.video_processor.conf = confidence_threshold
 
